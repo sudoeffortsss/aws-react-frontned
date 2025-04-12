@@ -1,23 +1,26 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Node.js dependencies
+/node_modules/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
+# Production build output
+/build/
 
-# testing
-/coverage
+# Testing output
+/coverage/
 
-# production
-/build
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# misc
+# OS-specific files
 .DS_Store
+
+# Environment files (ensure sensitive keys are not committed)
+/.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Optional: Ignore IDE or editor specific files (uncomment if needed)
+#.vscode/
