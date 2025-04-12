@@ -3,7 +3,7 @@ import { Button, Upload, message } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import axios from "axios";
 
-const DOMAIN = "http://localhost:5001";
+const DOMAIN = "http://localhost:8000";
 
 const FileUploadButton = () => {
   const props = {

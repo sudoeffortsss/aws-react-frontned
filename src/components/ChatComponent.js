@@ -6,7 +6,7 @@ import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognitio
 import Speech from "speak-tts";
 
 const { Search } = Input;
-const DOMAIN = "http://localhost:5001";
+const DOMAIN = "http://localhost:8000";
 
 // For adjusting the size of the search bar
 const searchContainer = {
@@ -60,11 +60,11 @@ const ChatComponent = (props) => {
     setSearchValue("");
     setIsLoading(true);
     try {
-      const response = await axios.get(`${DOMAIN}/chat`, {
-        params: { question },
+      const response = await axios.post(`${DOMAIN}/ask/`, {
+        query: question,
       });
-      // Pass the question and answer upward
-      handleResp(question, response.data);
+      // response.data.answer
+      handleResp(question, response.data.answer);
     } catch (error) {
       console.error("Error during chat request: ", error);
       handleResp(question, error.message);
@@ -72,6 +72,7 @@ const ChatComponent = (props) => {
       setIsLoading(false);
     }
   };
+  
 
   const handleChange = (e) => {
     setSearchValue(e.target.value);
