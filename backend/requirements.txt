@@ -5,8 +5,12 @@ python-dotenv
 pinecone-client
 langchain
 openai
-python-dotenv
+# python-dotenv
 langchain_openai
 langchain_pinecone
 langchain_community
 langchain_text_splitters
+#For uploading files, .pdf and images
+PyPDF2
+Pillow
+pytesseract
