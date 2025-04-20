@@ -3,9 +3,11 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useParams,
   useNavigate,
   useLocation,
+  Link,
 } from "react-router-dom";
 import { Layout, Typography, Button, message } from "antd";
 import PdfUploader from "./components/PdfUploader";
@@ -13,6 +15,8 @@ import ChatComponent from "./components/ChatComponent";
 import RenderQA from "./components/RenderQA";
 import LeftSidebar from "./components/LeftSidebar";
 import FileUploadButton from "./components/FileUploadButton";
+import Login from "./components/Login";
+import Register from "./components/Register";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -59,7 +63,7 @@ const CaseDetails = ({ conversationCases }) => {
   );
 };
 
-const AppContent = () => {
+export const AppContent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [conversationCases, setConversationCases] = useState([]);
@@ -196,6 +200,45 @@ const AppContent = () => {
           }}
         >
           <Title style={{ color: "white", margin: 0 }}>Paralegal RAG</Title>
+          <div>
+            {localStorage.getItem("authToken") ? (
+              <Button
+                onClick={() => {
+                  localStorage.removeItem("authToken");
+                  window.location.reload();
+                }}
+                type="default"
+              >
+                Logout
+              </Button>
+            ) : (
+              <>
+                <Button
+                  style={{
+                    backgroundColor: "white",
+                    borderColor: "white",
+                    color: "black",
+                    marginRight: 10,
+                  }}
+                >
+                  <Link to="/login" style={{ color: "inherit" }}>
+                    Login
+                  </Link>
+                </Button>
+                <Button
+                  style={{
+                    backgroundColor: "#white",
+                    borderColor: "#white",
+                    color: "black",
+                  }}
+                >
+                  <Link to="/register" style={{ color: "inherit" }}>
+                    Register
+                  </Link>
+                </Button>
+              </>
+            )}
+          </div>
         </Header>
         <Content style={{ margin: "20px", display: "flex", flexDirection: "column", height: "calc(100vh - 112px)" }}>
           <Routes>
@@ -216,9 +259,20 @@ const AppContent = () => {
 };
 
 const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    setIsAuthenticated(!!token);
+  }, []);
+
   return (
     <Router>
-      <AppContent />
+      <Routes>
+        <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
+        <Route path="/register" element={<Register setIsAuthenticated={setIsAuthenticated} />} />
+        <Route path="/*" element={<AppContent />} />
+      </Routes>
     </Router>
   );
 };
