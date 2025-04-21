@@ -16,7 +16,7 @@ const searchContainer = {
 };
 
 const ChatComponent = (props) => {
-  const { handleResp, isLoading, setIsLoading } = props;
+  const { handleResp, isLoading, setIsLoading, conversationName } = props;
   const [searchValue, setSearchValue] = useState("");
   const [isChatModeOn, setIsChatModeOn] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -62,9 +62,12 @@ const ChatComponent = (props) => {
     try {
       const response = await axios.post(`${DOMAIN}/ask/`, {
         query: question,
+        username: localStorage.getItem("username"),
+        name: conversationName,
       });
       // response.data.answer
       handleResp(question, response.data.answer,response.data.sources);
+      
     } catch (error) {
       console.error("Error during chat request: ", error);
       handleResp(question, error.message);

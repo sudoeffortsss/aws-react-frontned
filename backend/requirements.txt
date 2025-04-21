@@ -10,3 +10,5 @@ langchain_openai
 langchain_pinecone
 langchain_community
 langchain_text_splitters
+SQLAlchemy
+psycopg2-binary

@@ -21,6 +21,19 @@ from dotenv import load_dotenv
 from uuid import uuid4
 from fastapi import Query
 from typing import List
+from fastapi import Depends, Query
+from sqlalchemy.orm import Session
+from models import User, Conversation
+from db import get_db
+from init_db import create_tables, seed_data
+from db import SessionLocal
+from models import Message
+import json
+from fastapi import HTTPException
+
+
+
+
 
 
 app = FastAPI()
@@ -51,6 +64,9 @@ Only Anlysis and Answers in English!
 {question}
 """)
 
+#init db
+create_tables()
+seed_data()
 
 @app.post("/upload/")
 async def uploadFile(file: UploadFile = File(...)):
@@ -88,6 +104,9 @@ async def uploadFile(file: UploadFile = File(...)):
 
 @app.post("/ask/")
 async def ask_question(data: dict = Body(...)):
+    query = data.get("query")
+    username = data.get("username")
+    name = data.get("name")
     existing_indexes = [index_info["name"] for index_info in pc.list_indexes()]
     if index_name not in existing_indexes:
         pc.create_index(
@@ -133,20 +152,142 @@ async def ask_question(data: dict = Body(...)):
     
     if not query:
         return {"error": "Query is required"}
+    session = SessionLocal()
+    try:
+        # 1. 确保 user 存在
+        user = session.query(User).filter_by(username=username).first()
+        if not user:
+            user = User(username=username)
+            session.add(user)
+            session.commit()
+            session.refresh(user)  
 
-    # 回显用户输入的内容
+        # 2. 确保 conversation 存在
+        conversation = session.query(Conversation).filter_by(name=name).first()
+        if not conversation:
+            conversation = Conversation(name=name, user_id=user.id, thread_id=f"{username}-{int(time.time())}")
+            session.add(conversation)
+            session.commit()
+            session.refresh(conversation)  # 获取 conversation.id
+
+        # 3. 存储消息
+        session.add_all([
+            Message(
+                conversation_id=conversation.id,
+                role="user",
+                content=query,
+                source_json=None
+            ),
+            Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content=response.content,
+                source_json=json.dumps(sources)
+            )
+        ])
+        session.commit()
+
+    finally:
+        session.close()
+
     return {
         "answer": response.content,
         "sources": sources
     }
-    
-conversation_store = [
-    {"username": "alice", "thread_id": "abc123", "name": "Alice's Asylum Case"},
-    {"username": "alice", "thread_id": "xyz456", "name": "Family Emergency"},
-    {"username": "bob", "thread_id": "bob999", "name": "Visa Support"}
-]
+
 
 @app.get("/user-conversations")
-def get_user_conversations(username: str = Query(..., description="Username to search")):
-    results = [conv for conv in conversation_store if conv["username"] == username]
-    return results
+def get_user_conversations(username: str = Query(...), db: Session = Depends(get_db)):
+    user = db.query(User).filter_by(username=username).first()
+    if not user:
+        return []
+
+    conversations = (
+        db.query(Conversation)
+        .filter_by(user_id=user.id)
+        .order_by(Conversation.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "thread_id": c.thread_id,
+            "name": c.name,
+            "created_at": c.created_at.isoformat()
+        }
+        for c in conversations
+    ]
+
+
+@app.get("/conversation-messages")
+def get_conversation_messages(name: str = Query(...)):
+    session: Session = SessionLocal()
+    try:
+        conversation = session.query(Conversation).filter(Conversation.name == name).first()
+        if not conversation:
+            return []
+
+        messages = (
+            session.query(Message)
+            .filter(Message.conversation_id == conversation.id)
+            .order_by(Message.timestamp)
+            .all()
+        )
+
+        paired = []
+        current_question = None
+
+        for msg in messages:
+            if msg.role == "user":
+                current_question = msg.content
+            elif msg.role == "assistant" and current_question is not None:
+                paired.append({
+                    "question": current_question,
+                    "answer": msg.content,
+                    "sources": json.loads(msg.source_json) if msg.source_json else []
+                })
+                current_question = None
+
+        return paired  
+    finally:
+        session.close()
+@app.post("/create-conversation")
+def create_conversation(data: dict = Body(...)):
+    session = SessionLocal()
+    try:
+        username = data.get("username")
+        name = data.get("name")
+        thread_id = data.get("thread_id")
+
+        user = session.query(User).filter_by(username=username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        conversation = Conversation(
+            user_id=user.id,
+            name=name,
+            thread_id=thread_id
+        )
+        session.add(conversation)
+        session.commit()
+        return {"message": "Conversation created"}
+    finally:
+        session.close()
+
+@app.delete("/delete-conversation")
+def delete_conversation(name: str = Query(...)):
+    session = SessionLocal()
+    try:
+        conversation = session.query(Conversation).filter_by(name=name).first()
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # 删除关联的消息
+        session.query(Message).filter_by(conversation_id=conversation.id).delete()
+
+        # 删除会话
+        session.delete(conversation)
+        session.commit()
+        return {"status": "success", "message": f"Conversation '{name}' deleted."}
+    finally:
+        session.close()

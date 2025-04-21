@@ -70,16 +70,26 @@ const AppContent = () => {
 
   const fetchUserConversations = async (username) => {
     try {
+      // 第一步：获取该用户的所有会话
       const response = await fetch(`http://localhost:8000/user-conversations?username=${username}`);
       const data = await response.json();
 
-      const cases = data.map(conv => ({
-        id: conv.thread_id,
-        name: conv.name,
-        conversation: []
-      }));
+      // 第二步：对于每个会话，通过 Conversation_name 获取它的消息记录
+      const cases = await Promise.all(
+        data.map(async (conv) => {
+          const res = await fetch(`http://localhost:8000/conversation-messages?name=${conv.name}`);
+          const messages = await res.json();
+          console.log("Fetched conversation messages:", messages);
+          return {
+            id: conv.thread_id,
+            name: conv.name,
+            conversation: messages || []
+          };
+        })
+      );
 
       setConversationCases(cases);
+
       if (cases.length > 0) {
         setActiveCaseId(cases[0].id);
         navigate(`/conversation/${cases[0].id}`);
@@ -147,6 +157,7 @@ const AppContent = () => {
         conversation: [{ question, answer, sources }],
         name: "New Conversation",
       };
+      
       setConversationCases((prev) => [newCase, ...prev]);
       setActiveCaseId(newCase.id);
       navigate(`/conversation/${newCase.id}`);
@@ -186,33 +197,66 @@ const AppContent = () => {
     );
   };
 
-  const newConversation = () => {
+  const newConversation = async () => {
+    const newThreadId = new Date().valueOf().toString();
+    const defaultName = "New Conversation";
+  
+    // 后端创建 conversation
+    const res = await fetch("http://localhost:8000/create-conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,  
+        name: defaultName,
+        thread_id: newThreadId,
+      }),
+    });
+  
+    if (!res.ok) {
+      console.error("❌ Failed to create conversation in backend");
+      return;
+    }
+  
+    // 👇 本地更新
     const newCase = {
-      id: new Date().valueOf(),
+      id: newThreadId,
       conversation: [],
-      name: "New Conversation",
+      name: defaultName,
     };
     setConversationCases((prev) => [newCase, ...prev]);
-    setActiveCaseId(newCase.id);
-    navigate(`/conversation/${newCase.id}`);
+    setActiveCaseId(newThreadId);
+    navigate(`/conversation/${newThreadId}`);
   };
+  
 
-  const deleteConversation = (id) => {
-    setConversationCases((prev) => {
-      const newCases = prev.filter((c) => c.id !== id);
-      message.success("Conversation deleted.");
-      if (activeCaseId === id) {
-        if (newCases.length > 0) {
-          setActiveCaseId(newCases[0].id);
-          navigate(`/conversation/${newCases[0].id}`);
-        } else {
-          setActiveCaseId(null);
-          navigate(`/`);
+  const deleteConversation = async (id) => {
+    const convToDelete = conversationCases.find(c => c.id === id);
+    if (!convToDelete) return;
+  
+    try {
+      await fetch(`http://localhost:8000/delete-conversation?name=${encodeURIComponent(convToDelete.name)}`, {
+        method: "DELETE"
+      });
+      setConversationCases((prev) => {
+        const newCases = prev.filter((c) => c.id !== id);
+        message.success("Conversation deleted.");
+        if (activeCaseId === id) {
+          if (newCases.length > 0) {
+            setActiveCaseId(newCases[0].id);
+            navigate(`/conversation/${newCases[0].id}`);
+          } else {
+            setActiveCaseId(null);
+            navigate(`/`); 
+          }
         }
-      }
-      return newCases;
-    });
+        return newCases;
+      });
+    } catch (err) {
+      console.error("❌ Failed to delete from server:", err);
+      message.error("Failed to delete conversation.");
+    }
   };
+  
 
   return (
     <Layout style={{ height: "100vh", backgroundColor: "white" }}>
@@ -247,7 +291,7 @@ const AppContent = () => {
               New Conversation
             </Button>
             <FileUploadButton />
-            <ChatComponent handleResp={handleResp} isLoading={isLoading} setIsLoading={setIsLoading} />
+            <ChatComponent handleResp={handleResp} isLoading={isLoading} setIsLoading={setIsLoading} conversationName={conversationCases.find((c) => c.id === activeCaseId)?.name || "New Conversation"}/>
           </div>
         </Content>
       </Layout>

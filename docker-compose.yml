@@ -23,3 +23,22 @@ services:
     volumes:
       - ./backend/app:/app
     restart: always
+    depends_on:
+      - db  # ✅ 数据库依赖
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/paralegal_db  #  .env 中未定义此项
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: paralegal_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
