@@ -1,67 +1,3 @@
-// import React from "react";
-// import { Spin } from "antd";
-
-// const containerStyle = {
-//   display: "flex",
-//   justifyContent: "space-between",
-//   flexDirection: "column",
-//   marginBottom: "20px",
-// };
-
-// const userContainer = {
-//   textAlign: "right",
-// };
-
-// const agentContainer = {
-//   textAlign: "left",
-// };
-
-// const userStyle = {
-//   maxWidth: "50%",
-//   textAlign: "left",
-//   backgroundColor: "#1677FF",
-//   color: "white",
-//   display: "inline-block",
-//   borderRadius: "10px",
-//   padding: "10px",
-//   marginBottom: "10px",
-// };
-
-// const agentStyle = {
-//   maxWidth: "50%",
-//   textAlign: "left",
-//   backgroundColor: "#F9F9FE",
-//   color: "black",
-//   display: "inline-block",
-//   borderRadius: "10px",
-//   padding: "10px",
-//   marginBottom: "10px",
-// };
-
-// const RenderQA = (props) => {
-//   const { conversation, isLoading } = props;
-
-//   return (
-//     <>
-//       {conversation?.map((each, index) => {
-//         return (
-//           <div key={index} style={containerStyle}>
-//             <div style={userContainer}>
-//               <div style={userStyle}>{each.question}</div>
-//             </div>
-//             <div style={agentContainer}>
-//               <div style={agentStyle}>{each.answer}</div>
-//             </div>
-//           </div>
-//         );
-//       })}
-//       {isLoading && <Spin size="large" style={{ margin: "10px" }} />}
-//     </>
-//   );
-// };
-
-// export default RenderQA;
-
 import React from "react";
 import { Spin } from "antd";
 
@@ -80,6 +16,7 @@ const userContainerStyle = {
 const agentContainerStyle = {
   display: "flex",
   justifyContent: "flex-start",
+  flexDirection: "column"
 };
 
 const userBubbleStyle = {
@@ -98,6 +35,12 @@ const agentBubbleStyle = {
   padding: "10px",
 };
 
+const sourcesStyle = {
+  fontSize: "0.85em",
+  color: "#666",
+  marginTop: "5px",
+};
+
 const spinnerContainerStyle = {
   display: "flex",
   justifyContent: "center",
@@ -114,6 +57,23 @@ const RenderQA = ({ conversation, isLoading }) => {
           </div>
           <div style={agentContainerStyle}>
             <div style={agentBubbleStyle}>{each.answer}</div>
+
+            {/* ✅ 展示 sources */}
+            {each.sources && each.sources.length > 0 && (
+              <div style={sourcesStyle}>
+                <strong>Sources:</strong>
+                <ul style={{ margin: "5px 0", paddingLeft: "18px" }}>
+                  {each.sources.map((src, i) => (
+                    <li key={i}>
+                      {src.source}
+                      {src.chunk !== undefined && ` (chunk ${src.chunk})`}
+                      {src.chunk_id !== undefined && ` (chunk ${src.chunk_id})`}
+                      {src.page !== undefined && ` (page ${src.page})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       ))}

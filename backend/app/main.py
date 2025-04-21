@@ -18,6 +18,9 @@ from fastapi import Body
 from fastapi import UploadFile, File
 from langchain.prompts import PromptTemplate 
 from dotenv import load_dotenv
+from uuid import uuid4
+from fastapi import Query
+from typing import List
 
 
 app = FastAPI()
@@ -53,10 +56,16 @@ Only Anlysis and Answers in English!
 async def uploadFile(file: UploadFile = File(...)):
     content = await file.read()
     text = content.decode('utf-8')
-    document = Document(page_content=text)
     text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=20)
-    docs = text_splitter.split_documents([document])
-
+    chunks = text_splitter.split_text(text)
+    documents = []
+    for i, chunk in enumerate(chunks):
+        metadata = {
+            "source": file.filename,
+            "chunk": i
+        }
+        documents.append(Document(page_content=chunk, metadata=metadata))
+        
     existing_indexes = [index_info["name"] for index_info in pc.list_indexes()]
 
     if index_name not in existing_indexes:
@@ -71,7 +80,7 @@ async def uploadFile(file: UploadFile = File(...)):
 
     index = pc.Index(index_name)
     vectorstore_from_docs = PineconeVectorStore.from_documents(
-        docs,
+        documents,
         index_name=index_name,
         embedding=embeddings
     )
@@ -106,7 +115,15 @@ async def ask_question(data: dict = Body(...)):
     # )  
     retrieved_docs = vector_store.similarity_search(query, k=5)
     context = "\n\n".join([doc.page_content for doc in retrieved_docs])
-
+    
+    sources = [
+        {
+            "source": doc.metadata.get("source", "unknown"),
+            "chunk_id": doc.metadata.get("chunk", -1)
+        }
+        for doc in retrieved_docs
+    ]
+    
     final_prompt = custom_prompt.format(
         context=context,
         question=query
@@ -118,4 +135,18 @@ async def ask_question(data: dict = Body(...)):
         return {"error": "Query is required"}
 
     # 回显用户输入的内容
-    return {"answer": response.content}
+    return {
+        "answer": response.content,
+        "sources": sources
+    }
+    
+conversation_store = [
+    {"username": "alice", "thread_id": "abc123", "name": "Alice's Asylum Case"},
+    {"username": "alice", "thread_id": "xyz456", "name": "Family Emergency"},
+    {"username": "bob", "thread_id": "bob999", "name": "Visa Support"}
+]
+
+@app.get("/user-conversations")
+def get_user_conversations(username: str = Query(..., description="Username to search")):
+    results = [conv for conv in conversation_store if conv["username"] == username]
+    return results

@@ -65,6 +65,44 @@ const AppContent = () => {
   const [conversationCases, setConversationCases] = useState([]);
   const [activeCaseId, setActiveCaseId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState(null);
+  const hasPromptedRef = useRef(false);
+
+  const fetchUserConversations = async (username) => {
+    try {
+      const response = await fetch(`http://localhost:8000/user-conversations?username=${username}`);
+      const data = await response.json();
+
+      const cases = data.map(conv => ({
+        id: conv.thread_id,
+        name: conv.name,
+        conversation: []
+      }));
+
+      setConversationCases(cases);
+      if (cases.length > 0) {
+        setActiveCaseId(cases[0].id);
+        navigate(`/conversation/${cases[0].id}`);
+      }
+    } catch (err) {
+      console.error("❌ Failed to fetch conversations:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!hasPromptedRef.current) {
+      const name = prompt("Enter your username:");
+      if (name) {
+        setUsername(name);
+        fetchUserConversations(name);
+      }
+      hasPromptedRef.current = true;;
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log("📦 updated conversationCases:", conversationCases);
+  }, [conversationCases]);
 
   useEffect(() => {
     const storedCases = localStorage.getItem("conversationCases");
@@ -73,7 +111,7 @@ const AppContent = () => {
     }
     const storedActiveCase = localStorage.getItem("activeCaseId");
     if (storedActiveCase) {
-      setActiveCaseId(Number(storedActiveCase));
+      setActiveCaseId(storedActiveCase);
     }
   }, []);
 
@@ -85,26 +123,28 @@ const AppContent = () => {
   }, [conversationCases, activeCaseId]);
 
   useEffect(() => {
-    const match = location.pathname.match(/\/conversation\/(\d+)/);
+    const match = location.pathname.match(/\/conversation\/(.+)/);
     if (match) {
       const id = match[1];
       if (id !== String(activeCaseId)) {
-        setActiveCaseId(Number(id));
+        setActiveCaseId(id);
       }
     }
   }, [location.pathname, activeCaseId]);
 
   const sidebarConversations = conversationCases.map((c) => ({
     key: c.id,
-    title: c.name,
+    name: c.name,
     id: c.id,
   }));
 
-  const handleResp = (question, answer) => {
+  console.log("📋 sidebarConversations", sidebarConversations); // ✅ 渲染前确认
+
+  const handleResp = (question, answer, sources) => {
     if (activeCaseId === null || conversationCases.length === 0) {
       const newCase = {
         id: new Date().valueOf(),
-        conversation: [{ question, answer }],
+        conversation: [{ question, answer, sources }],
         name: "New Conversation",
       };
       setConversationCases((prev) => [newCase, ...prev]);
@@ -114,7 +154,7 @@ const AppContent = () => {
       setConversationCases((prev) =>
         prev.map((c) =>
           c.id === activeCaseId
-            ? { ...c, conversation: [{ question, answer }, ...c.conversation] }
+            ? { ...c, conversation: [...c.conversation, { question, answer, sources }] }
             : c
         )
       );

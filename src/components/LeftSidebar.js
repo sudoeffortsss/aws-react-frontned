@@ -80,8 +80,8 @@ const LeftSidebar = ({
                         autoFocus
                       />
                     ) : (
-                      <div style={{ flexGrow: 1 }} onDoubleClick={() => startEditing(item.id, item.title)}>
-                        <Link to={`/conversation/${item.id}`}>{item.title}</Link>
+                      <div style={{ flexGrow: 1 }} onDoubleClick={() => startEditing(item.id, item.name)}>
+                        <Link to={`/conversation/${item.id}`}>{item.name}</Link>
                       </div>
                     )}
                     <Popconfirm

@@ -64,7 +64,7 @@ const ChatComponent = (props) => {
         query: question,
       });
       // response.data.answer
-      handleResp(question, response.data.answer);
+      handleResp(question, response.data.answer,response.data.sources);
     } catch (error) {
       console.error("Error during chat request: ", error);
       handleResp(question, error.message);
